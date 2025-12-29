@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 BLE Control</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    animation: gradientShift 15s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0%, 100% { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); }
+    50% { background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 50%, #2d2d2d 100%); }
+  }
+
+  .container {
+    background: rgba(25, 25, 25, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 32px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.6s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 {
+    color: white;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-align: center;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  h3 {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 28px 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn {
+    background: rgba(40, 40, 40, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn:hover {
+    background: rgba(60, 60, 60, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn:hover::before {
+    left: 100%;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+    border: none;
+    color: #1a1a1a;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #e0e0e0 0%, #ffffff 100%);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+    color: #000;
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #606060 0%, #808080 100%);
+    border: none;
+    color: white;
+  }
+
+  .btn-success:hover {
+    background: linear-gradient(135deg, #808080 0%, #a0a0a0 100%);
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #303030 0%, #505050 100%);
+    border: none;
+    color: #cccccc;
+  }
+
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #505050 0%, #707070 100%);
+    color: white;
+  }
+
+  .status {
+    background: rgba(15, 15, 15, 0.7);
+    padding: 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+    color: white;
+    font-weight: 500;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .status.connected {
+    background: rgba(80, 80, 80, 0.8);
+    border-color: rgba(160, 160, 160, 0.5);
+    color: #e0e0e0;
+  }
+
+  .status.connecting {
+    background: rgba(50, 50, 50, 0.8);
+    border-color: rgba(120, 120, 120, 0.5);
+    color: #cccccc;
+  }
+
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .slider-container {
+    background: rgba(30, 30, 30, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 16px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .slider-label {
+    color: white;
+    font-weight: 500;
+    margin-bottom: 12px;
+    display: block;
+    text-align: center;
+  }
+
+  .slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(60, 60, 60, 0.8);
+    outline: none;
+    margin: 16px 0;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffffff, #e0e0e0);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+  }
+
+  .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+    background: linear-gradient(135deg, #e0e0e0, #ffffff);
+  }
+
+  .slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffffff, #e0e0e0);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .value-display {
+    background: rgba(10, 10, 10, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-block;
+    margin: 0 8px;
+    min-width: 60px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .send-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 480px) {
+    .container {
+      margin: 10px;
+      padding: 24px;
+    }
+    
+    h2 {
+      font-size: 24px;
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      font-size: 13px;
+    }
+  }
+
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h2>🔗 ESP32 BLE Control</h2>
+    
+    <button id="connect" class="btn btn-primary pulse">🔌 Connect BLE Device</button>
+    <div id="status" class="status">Status: Not connected</div>
+
+    <h3>⚙️ Mode Selection</h3>
+    <div class="button-group">
+      <button id="modeButton" class="btn">🔘 Button Mode</button>
+      <button id="modePIR" class="btn">📡 PIR Mode</button>
+    </div>
+
+    <h3>💡 Fan Control</h3>
+    <div class="button-group">
+      <button id="ledOn" class="btn btn-success">✨ Fan ON</button>
+      <button id="ledOff" class="btn btn-danger">🌙 Fan OFF</button>
+    </div>
+
+    <h3>🔒 Child Lock</h3>
+    <div class="button-group">
+      <button id="lockOn" class="btn">🔐 Lock ON</button>
+      <button id="lockOff" class="btn">🔓 Lock OFF</button>
+    </div>
+
+    <h3>⏱️ PIR Fan作動時間設定</h3>
+    <div class="slider-container">
+      <label class="slider-label">Duration: <span id="sliderValue" class="value-display">5</span> 秒</label>
+      <input type="range" id="pirDurationSlider" class="slider" min="1" max="60" value="5" />
+      <button id="sendDuration" class="btn btn-primary send-btn">📤 送信</button>
+    </div>
+
+    <h3>🌪️ Fan Speed設定</h3>
+    <div class="slider-container">
+      <label class="slider-label">Speed: <span id="speedValue" class="value-display">50</span>%</label>
+      <input type="range" id="speedSlider" class="slider" min="0" max="100" value="50" />
+      <button id="sendSpeed" class="btn btn-primary send-btn">📤 送信</button>
+    </div>
+  </div>
+
+  <script>
+    const SERVICE_UUID = '3fb5626e-27b5-4cb9-b6ff-924b70f13215';
+    const CHARACTERISTIC_UUID = '5dfaf517-f077-428d-b909-de9e321d1667';
+
+    let device;
+    let characteristic;
+
+    const statusDiv = document.getElementById('status');
+    const connectBtn = document.getElementById('connect');
+
+    async function connect() {
+      try {
+        statusDiv.textContent = 'Status: Connecting...';
+        statusDiv.className = 'status connecting';
+        connectBtn.textContent = '🔄 Connecting...';
+        connectBtn.disabled = true;
+        
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [SERVICE_UUID] }]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        statusDiv.textContent = `Status: Connected to ${device.name} ✅`;
+        statusDiv.className = 'status connected';
+        connectBtn.textContent = '✅ Connected';
+        connectBtn.classList.remove('pulse');
+        
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+      } catch (error) {
+        statusDiv.textContent = 'Status: Connection failed ❌';
+        statusDiv.className = 'status';
+        connectBtn.textContent = '🔌 Connect BLE Device';
+        connectBtn.disabled = false;
+        console.error(error);
+      }
+    }
+
+    function onDisconnected() {
+      statusDiv.textContent = 'Status: Disconnected ⚠️';
+      statusDiv.className = 'status';
+      connectBtn.textContent = '🔌 Connect BLE Device';
+      connectBtn.disabled = false;
+      connectBtn.classList.add('pulse');
+      characteristic = null;
+      device = null;
+    }
+
+    async function sendCommand(cmd) {
+      if (!characteristic) {
+        alert('⚠️ Not connected to BLE device');
+        return;
+      }
+      const encoder = new TextEncoder();
+      const data = encoder.encode(cmd);
+      try {
+        await characteristic.writeValue(data);
+        console.log('Sent:', cmd);
+        
+        // Visual feedback
+        const buttons = document.querySelectorAll('.btn');
+        buttons.forEach(btn => {
+          if (btn === event.target) {
+            btn.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+              btn.style.transform = '';
+            }, 150);
+          }
+        });
+      } catch (e) {
+        console.error('Write failed:', e);
+
+      }
+    }
+
+    // Event listeners
+    document.getElementById('connect').addEventListener('click', connect);
+    document.getElementById('modeButton').addEventListener('click', (e) => {
+      e.target.textContent = '✅ Button Mode';
+      setTimeout(() => e.target.textContent = '🔘 Button Mode', 1000);
+      sendCommand('mode button');
+    });
+    document.getElementById('modePIR').addEventListener('click', (e) => {
+      e.target.textContent = '✅ PIR Mode';
+      setTimeout(() => e.target.textContent = '📡 PIR Mode', 1000);
+      sendCommand('mode pir');
+    });
+    document.getElementById('ledOn').addEventListener('click', () => sendCommand('on'));
+    document.getElementById('ledOff').addEventListener('click', () => sendCommand('off'));
+    document.getElementById('lockOn').addEventListener('click', (e) => {
+      e.target.textContent = '✅ Locked';
+      setTimeout(() => e.target.textContent = '🔐 Lock ON', 1000);
+      sendCommand('lock on');
+    });
+    document.getElementById('lockOff').addEventListener('click', (e) => {
+      e.target.textContent = '✅ Unlocked';
+      setTimeout(() => e.target.textContent = '🔓 Lock OFF', 1000);
+      sendCommand('lock off');
+    });
+
+    // PIR Duration slider
+    const slider = document.getElementById('pirDurationSlider');
+    const sliderValue = document.getElementById('sliderValue');
+    const sendDurationButton = document.getElementById('sendDuration');
+
+    slider.addEventListener('input', () => { 
+      sliderValue.textContent = slider.value; 
+    });
+    
+    sendDurationButton.addEventListener('click', (e) => { 
+      const originalText = e.target.textContent;
+      e.target.textContent = '✅ 送信完了!';
+      setTimeout(() => e.target.textContent = originalText, 1000);
+      sendCommand(`duration ${slider.value}`); 
+    });
+
+    // Fan Speed slider
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    const sendSpeedButton = document.getElementById('sendSpeed');
+
+    speedSlider.addEventListener('input', () => { 
+      speedValue.textContent = speedSlider.value; 
+    });
+
+    sendSpeedButton.addEventListener('click', (e) => {
+      const val = parseInt(speedSlider.value);
+      const mappedSpeed = Math.round(255 - ((val / 100) * (255 - 1)));
+      
+      const originalText = e.target.textContent;
+      e.target.textContent = '✅ 送信完了!';
+      setTimeout(() => e.target.textContent = originalText, 1000);
+      
+    sendCommand(`speed ${mappedSpeed} ${val}`);
+
+    });
+
+    // Add smooth transitions to sliders
+    document.querySelectorAll('.slider').forEach(slider => {
+      slider.addEventListener('input', function() {
+        const value = (this.value - this.min) / (this.max - this.min) * 100;
+        this.style.background = `linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(200, 200, 200, 0.8) ${value}%, rgba(60, 60, 60, 0.8) ${value}%, rgba(60, 60, 60, 0.8) 100%)`;
+      });
+    });
+
+    // Initialize slider backgrounds
+    document.querySelectorAll('.slider').forEach(slider => {
+      const value = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+      slider.style.background = `linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(200, 200, 200, 0.8) ${value}%, rgba(60, 60, 60, 0.8) ${value}%, rgba(60, 60, 60, 0.8) 100%)`;
+    });
+  </script>
+</body>
+</html>
+
+
