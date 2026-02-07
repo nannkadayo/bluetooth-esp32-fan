@@ -28,8 +28,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool deviceConnected = false;
 bool ledState = false;
 bool childLock = false;
-int SPEED = 214;
-int speedPercent = 84;  // 修正：初期値を84%に（214/255*100）
+int SPEED = 43;  // 修正：17%に相当する値（255*0.17≒43）
+int speedPercent = 17;
 
 const int STOP = 0;
 const int PWM_FREQ = 25000;  // 25kHz
