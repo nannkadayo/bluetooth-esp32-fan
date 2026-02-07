@@ -387,7 +387,6 @@
         });
       } catch (e) {
         console.error('Write failed:', e);
-
       }
     }
 
@@ -432,7 +431,7 @@
       sendCommand(`duration ${slider.value}`); 
     });
 
-    // Fan Speed slider
+    // Fan Speed slider - 修正版
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
     const sendSpeedButton = document.getElementById('sendSpeed');
@@ -443,14 +442,14 @@
 
     sendSpeedButton.addEventListener('click', (e) => {
       const val = parseInt(speedSlider.value);
-      const mappedSpeed = Math.round(255 - ((val / 100) * (255 - 1)));
+      // 修正：単純に0-100の値をそのまま送信
       
       const originalText = e.target.textContent;
       e.target.textContent = '✅ 送信完了!';
       setTimeout(() => e.target.textContent = originalText, 1000);
       
-    sendCommand(`speed ${mappedSpeed} ${val}`);
-
+      sendCommand(`speed ${val}`);
+      console.log(`Sending speed: ${val}%`);
     });
 
     // Add smooth transitions to sliders
@@ -469,5 +468,3 @@
   </script>
 </body>
 </html>
-
-
